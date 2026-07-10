@@ -1,22 +1,33 @@
 /**
  * 画面遷移と描画
- *   start(テーマ入力) → quiz(12問) → result(診断結果)
- * 結果はURLクエリ(?theme=&type=&scores=)で共有でき、共有リンクを開くと結果画面から始まる。
+ *
+ * 2つのモードを持つ:
+ *   AIモード   … config.js の aiEndpoint 設定時。テーマ専用の質問と
+ *                キャラクター結果をAIが生成する(js/ai.js 経由で取得)。
+ *   汎用モード … 未設定時・AI生成失敗時のフォールバック。固定12問の
+ *                心理尺度 + テンプレート結果(従来動作)。
+ *
+ * どちらも「回答 → 4軸スコア → タイプ判定」という採点の骨組みは共通。
+ * 結果はURLクエリ(?theme=&type=&scores=&mode=)で共有できる。
  */
 (function () {
   'use strict';
 
-  const { AXES, scoreAnswers, compatibleType } = window.DiagnosisEngine;
-  const { PRESET_THEMES, buildResult, compatSummary } = window.DiagnosisThemes;
+  const { AXES, scoreAnswers, scoreChoices, matchCharacter, compatibleType } = window.DiagnosisEngine;
+  const { PRESET_THEMES, ARCHETYPES, buildResult, compatSummary } = window.DiagnosisThemes;
+  const AI = window.DiagnosisAI;
   const QUESTIONS = window.QUESTIONS;
   const LIKERT_LABELS = window.LIKERT_LABELS;
 
   const $ = (id) => document.getElementById(id);
 
   const state = {
+    mode: 'generic',   // 'generic' | 'ai'
     theme: '',
+    pack: null,        // AIモードの診断パック
     current: 0,
-    answers: [], // 1〜5
+    answers: [],       // 汎用: 1〜5 / AI: 選んだ選択肢のvalue(-2〜2)
+    shareText: '',
   };
 
   // ---------- 画面切り替え ----------
@@ -50,27 +61,73 @@
     });
   }
 
-  function startQuiz() {
+  async function startQuiz() {
     const theme = $('theme-input').value.trim();
     if (!theme || theme.length > 12) {
-      $('theme-error').hidden = false;
+      showThemeError('テーマを入力してください(12文字まで)');
       return;
     }
     $('theme-error').hidden = true;
     state.theme = theme;
     state.current = 0;
     state.answers = [];
+    hideModeNotice();
+
+    if (AI.isEnabled()) {
+      $('loading-title').textContent = `「${theme}診断」を作成中`;
+      showScreen('loading');
+      try {
+        state.pack = await AI.fetchPack(theme);
+        state.mode = 'ai';
+      } catch (e) {
+        if (e && e.rejected) {
+          showThemeError('このテーマでは診断を作成できません。別のテーマをお試しください');
+          showScreen('start');
+          return;
+        }
+        // 生成失敗 → 汎用診断で続行
+        state.mode = 'generic';
+        state.pack = null;
+        showModeNotice('AI生成に失敗したため、共通の12問で診断します');
+      }
+    } else {
+      state.mode = 'generic';
+      state.pack = null;
+    }
+
     renderQuestion();
     showScreen('quiz');
   }
 
+  function showThemeError(message) {
+    const el = $('theme-error');
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  function showModeNotice(message) {
+    const el = $('mode-notice');
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  function hideModeNotice() {
+    $('mode-notice').hidden = true;
+  }
+
   // ---------- 質問画面 ----------
 
-  function renderQuestion() {
-    const q = QUESTIONS[state.current];
-    const total = QUESTIONS.length;
+  function currentQuestions() {
+    return state.mode === 'ai' ? state.pack.questions : QUESTIONS;
+  }
 
-    $('quiz-theme-label').textContent = `${state.theme}診断`;
+  function renderQuestion() {
+    const questions = currentQuestions();
+    const q = questions[state.current];
+    const total = questions.length;
+
+    $('quiz-theme-label').textContent =
+      state.mode === 'ai' && state.pack.title ? state.pack.title : `${state.theme}診断`;
     $('quiz-progress-text').textContent = `Q${state.current + 1} / ${total}`;
     $('progress-bar').style.width = `${(state.current / total) * 100}%`;
     $('question-text').textContent = q.text;
@@ -78,24 +135,40 @@
 
     const box = $('likert-options');
     box.innerHTML = '';
-    LIKERT_LABELS.forEach((label, i) => {
-      const value = i + 1;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'likert-option';
-      btn.dataset.value = String(value);
-      btn.setAttribute('role', 'radio');
-      btn.setAttribute('aria-checked', state.answers[state.current] === value ? 'true' : 'false');
-      if (state.answers[state.current] === value) btn.classList.add('selected');
-      btn.innerHTML = `<span class="likert-dot dot-${value}"></span><span>${label}</span>`;
-      btn.addEventListener('click', () => answer(value));
-      box.appendChild(btn);
-    });
+
+    if (state.mode === 'ai') {
+      q.choices.forEach((choice) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'likert-option choice-option';
+        btn.setAttribute('role', 'radio');
+        const selected = state.answers[state.current] === choice.value;
+        btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+        if (selected) btn.classList.add('selected');
+        btn.textContent = choice.text;
+        btn.addEventListener('click', () => answer(choice.value));
+        box.appendChild(btn);
+      });
+    } else {
+      LIKERT_LABELS.forEach((label, i) => {
+        const value = i + 1;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'likert-option';
+        btn.setAttribute('role', 'radio');
+        const selected = state.answers[state.current] === value;
+        btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+        if (selected) btn.classList.add('selected');
+        btn.innerHTML = `<span class="likert-dot dot-${value}"></span><span>${label}</span>`;
+        btn.addEventListener('click', () => answer(value));
+        box.appendChild(btn);
+      });
+    }
   }
 
   function answer(value) {
     state.answers[state.current] = value;
-    if (state.current < QUESTIONS.length - 1) {
+    if (state.current < currentQuestions().length - 1) {
       state.current += 1;
       renderQuestion();
     } else {
@@ -113,38 +186,22 @@
   // ---------- 結果画面 ----------
 
   function finishQuiz() {
-    const { typeCode, axes } = scoreAnswers(QUESTIONS, state.answers);
-    renderResult(state.theme, typeCode, axes.map((a) => a.score));
-    updateShareUrl(state.theme, typeCode, axes.map((a) => a.score));
+    const scored = state.mode === 'ai'
+      ? scoreChoices(state.pack.questions, state.answers)
+      : scoreAnswers(QUESTIONS, state.answers);
+    const scores = scored.axes.map((a) => a.score);
+
+    if (state.mode === 'ai') {
+      renderAiResult(state.theme, state.pack, scored.axes);
+    } else {
+      renderGenericResult(state.theme, scored.typeCode, scores);
+    }
+    updateShareUrl(state.theme, scored.typeCode, scores, state.mode);
     showScreen('result');
   }
 
-  /**
-   * @param {string} theme
-   * @param {string} typeCode
-   * @param {number[]} scores 各軸の1文字目極への傾き(0〜100)。AXESと同順。
-   */
-  function renderResult(theme, typeCode, scores) {
-    const result = buildResult(typeCode, theme);
-
-    $('result-theme-label').textContent = `${theme}診断 結果`;
-    $('result-emoji').textContent = result.emoji;
-    $('result-title').textContent = `「${result.title}」タイプ`;
-    $('result-code').textContent = `${result.archetypeName}(${typeCode}型)`;
-    $('result-catch').textContent = result.catch;
-    $('result-flavor').textContent = result.flavor;
-    $('result-desc').textContent = result.desc;
-    $('result-advice').textContent = result.advice;
-    $('result-compat').textContent = compatSummary(compatibleType(typeCode), theme);
-
-    const ul = $('result-strengths');
-    ul.innerHTML = '';
-    result.strengths.forEach((s) => {
-      const li = document.createElement('li');
-      li.textContent = s;
-      ul.appendChild(li);
-    });
-
+  /** 4軸バーの描画(両モード共通) */
+  function renderAxisBars(scores) {
     const barsBox = $('axis-bars');
     barsBox.innerHTML = '';
     AXES.forEach((axis, i) => {
@@ -166,16 +223,68 @@
       `;
       barsBox.appendChild(row);
     });
+  }
 
-    // シェア用テキストを保持
+  function renderStrengths(strengths) {
+    const ul = $('result-strengths');
+    ul.innerHTML = '';
+    strengths.forEach((s) => {
+      const li = document.createElement('li');
+      li.textContent = s;
+      ul.appendChild(li);
+    });
+  }
+
+  /** AIモード: 軸スコアに最も近いキャラクターを表示 */
+  function renderAiResult(theme, pack, axes) {
+    const character = matchCharacter(pack.results, axes);
+
+    $('result-theme-label').textContent = `${pack.title || theme + '診断'} 結果`;
+    $('result-emoji').textContent = character.emoji;
+    $('result-title').textContent = `「${character.name}」タイプ`;
+    $('result-code').textContent = `${character.code}型`;
+    $('result-catch').textContent = character.catch;
+    $('result-flavor').textContent = character.flavor;
+    $('result-desc').textContent = character.desc;
+    $('result-advice').textContent = character.advice;
+    renderStrengths(character.strengths);
+    renderAxisBars(axes.map((a) => a.score));
+
+    // 相性: 相性タイプに一致するキャラがいればその名前で表示
+    const compatCode = compatibleType(character.code);
+    const compatChar = pack.results.find((r) => r.code === compatCode && r !== character);
+    $('result-compat').textContent = compatChar
+      ? `${compatChar.emoji}「${compatChar.name}」タイプ(${compatCode}型)。あなたにない視点を持ちつつ、大切にするものが通じ合う相手です。`
+      : `${compatCode}型のタイプ。あなたにない視点を持ちつつ、大切にするものが通じ合う相手です。`;
+
+    state.shareText = `【${pack.title || theme + '診断'}】わたしは「${character.name}」タイプでした! ${character.emoji}`;
+  }
+
+  /** 汎用モード: 16タイプのテンプレート結果を表示 */
+  function renderGenericResult(theme, typeCode, scores) {
+    const result = buildResult(typeCode, theme);
+
+    $('result-theme-label').textContent = `${theme}診断 結果`;
+    $('result-emoji').textContent = result.emoji;
+    $('result-title').textContent = `「${result.title}」タイプ`;
+    $('result-code').textContent = `${result.archetypeName}(${typeCode}型)`;
+    $('result-catch').textContent = result.catch;
+    $('result-flavor').textContent = result.flavor;
+    $('result-desc').textContent = result.desc;
+    $('result-advice').textContent = result.advice;
+    $('result-compat').textContent = compatSummary(compatibleType(typeCode), theme);
+    renderStrengths(result.strengths);
+    renderAxisBars(scores);
+
     state.shareText = `【${theme}診断】わたしは「${result.title}」タイプ(${result.archetypeName})でした! ${result.emoji}`;
   }
 
-  function updateShareUrl(theme, typeCode, scores) {
+  function updateShareUrl(theme, typeCode, scores, mode) {
     const params = new URLSearchParams({
       theme,
       type: typeCode,
       scores: scores.join(','),
+      mode,
     });
     history.replaceState(null, '', `${location.pathname}?${params}`);
   }
@@ -197,28 +306,57 @@
   function resetToStart() {
     history.replaceState(null, '', location.pathname);
     $('theme-input').value = '';
+    $('theme-error').hidden = true;
     showScreen('start');
   }
 
   // ---------- 共有リンクからの復元 ----------
 
-  function tryRestoreFromUrl() {
+  /** scores から axes オブジェクト(score + dominant)を再構築 */
+  function axesFromScores(scores) {
+    return AXES.map((axis, i) => ({
+      ...axis,
+      score: scores[i],
+      dominant: scores[i] >= 50 ? axis.first : axis.second,
+    }));
+  }
+
+  async function tryRestoreFromUrl() {
     const params = new URLSearchParams(location.search);
     const theme = (params.get('theme') || '').trim();
     const typeCode = params.get('type') || '';
     const scores = (params.get('scores') || '').split(',').map(Number);
+    const mode = params.get('mode') || 'generic';
 
-    if (
+    const valid =
       theme && theme.length <= 12 &&
-      window.DiagnosisThemes.ARCHETYPES[typeCode] &&
+      /^[EI][NS][TF][JP]$/.test(typeCode) &&
       scores.length === AXES.length &&
-      scores.every((s) => Number.isFinite(s) && s >= 0 && s <= 100)
-    ) {
-      renderResult(theme, typeCode, scores);
-      showScreen('result');
-      return true;
+      scores.every((s) => Number.isFinite(s) && s >= 0 && s <= 100);
+    if (!valid) return false;
+
+    state.theme = theme;
+
+    if (mode === 'ai' && AI.isEnabled()) {
+      $('loading-title').textContent = `「${theme}診断」を読み込み中`;
+      showScreen('loading');
+      try {
+        const pack = await AI.fetchPack(theme);
+        state.mode = 'ai';
+        state.pack = pack;
+        renderAiResult(theme, pack, axesFromScores(scores));
+        showScreen('result');
+        return true;
+      } catch {
+        // 取得できなければ汎用結果で表示(タイプ・スコアは共有値をそのまま使う)
+      }
     }
-    return false;
+
+    if (!ARCHETYPES[typeCode]) return false;
+    state.mode = 'generic';
+    renderGenericResult(theme, typeCode, scores);
+    showScreen('result');
+    return true;
   }
 
   // ---------- 初期化 ----------
@@ -232,5 +370,9 @@
   });
   $('new-theme-btn').addEventListener('click', resetToStart);
 
-  tryRestoreFromUrl();
+  tryRestoreFromUrl().then((restored) => {
+    if (!restored && !$('screen-start').classList.contains('active')) {
+      showScreen('start');
+    }
+  });
 })();

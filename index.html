@@ -46,6 +46,15 @@
       </div>
     </section>
 
+    <!-- 画面1.5: AI生成中 -->
+    <section id="screen-loading" class="screen">
+      <div class="card loading-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2 id="loading-title" class="loading-title"></h2>
+        <p class="loading-sub">AIがテーマに合わせた質問と結果を考えています。<br />10〜30秒ほどお待ちください…</p>
+      </div>
+    </section>
+
     <!-- 画面2: 質問 -->
     <section id="screen-quiz" class="screen">
       <div class="card">
@@ -56,6 +65,7 @@
         <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
           <div id="progress-bar" class="progress-bar"></div>
         </div>
+        <p id="mode-notice" class="mode-notice" hidden></p>
 
         <h2 id="question-text" class="question-text"></h2>
 
@@ -119,9 +129,11 @@
     <p>〇〇診断メーカー — 質問設計はビッグファイブ理論に基づく簡易4軸尺度です</p>
   </footer>
 
+  <script src="js/config.js"></script>
   <script src="js/questions.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/themes.js"></script>
+  <script src="js/ai.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

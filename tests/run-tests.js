@@ -6,11 +6,13 @@
  */
 'use strict';
 
+globalThis.APP_CONFIG = { aiEndpoint: '' };
 require('../js/questions.js');
 require('../js/engine.js');
 require('../js/themes.js');
+require('../js/ai.js');
 
-const { AXES, scoreAnswers, compatibleType } = globalThis.DiagnosisEngine;
+const { AXES, scoreAnswers, scoreChoices, matchCharacter, compatibleType } = globalThis.DiagnosisEngine;
 const { ARCHETYPES, buildResult, compatSummary } = globalThis.DiagnosisThemes;
 const QUESTIONS = globalThis.QUESTIONS;
 
@@ -106,6 +108,81 @@ console.log('compatibleType:');
   assert(compatibleType('ENTJ') === 'INTP', 'EI/JPを反転、NS/TFは維持');
   assert(compatibleType('ISFP') === 'ESFJ', '逆方向も反転');
   assert(compatSummary('INTP', '犬').includes('犬'), '相性サマリーにテーマが入る');
+}
+
+console.log('AIモード: scoreChoices / matchCharacter:');
+{
+  // 4軸×2問の最小パック
+  const aiQuestions = [
+    { axis: 'EI' }, { axis: 'EI' },
+    { axis: 'NS' }, { axis: 'NS' },
+    { axis: 'TF' }, { axis: 'TF' },
+    { axis: 'JP' }, { axis: 'JP' },
+  ];
+
+  const allFirst = scoreChoices(aiQuestions, [2, 2, 2, 2, 2, 2, 2, 2]);
+  assert(allFirst.typeCode === 'ENTJ' && allFirst.axes.every((a) => a.score === 100), '全問+2でENTJ・全軸100');
+
+  const allSecond = scoreChoices(aiQuestions, [-2, -2, -2, -2, -2, -2, -2, -2]);
+  assert(allSecond.typeCode === 'ISFP' && allSecond.axes.every((a) => a.score === 0), '全問-2でISFP・全軸0');
+
+  const mixed = scoreChoices(aiQuestions, [2, -2, 1, 1, -1, -1, 2, 1]);
+  assert(mixed.axes[0].score === 50 && mixed.typeCode[0] === 'E', '拮抗(50)は1文字目に倒す');
+
+  let threw = false;
+  try { scoreChoices(aiQuestions, [2, 2]); } catch { threw = true; }
+  assert(threw, '回答数の不一致はエラー');
+  threw = false;
+  try { scoreChoices(aiQuestions, [3, 2, 2, 2, 2, 2, 2, 2]); } catch { threw = true; }
+  assert(threw, '範囲外のvalueはエラー');
+
+  // マッチング: 完全一致タイプがあればそれを選ぶ
+  const results = [
+    { name: 'A', code: 'ENTJ' },
+    { name: 'B', code: 'ISFP' },
+    { name: 'C', code: 'ENFP' },
+  ];
+  assert(matchCharacter(results, allFirst.axes).name === 'A', '完全一致のキャラを選ぶ');
+  assert(matchCharacter(results, allSecond.axes).name === 'B', '逆側も完全一致を選ぶ');
+
+  // 一致タイプ(ENFJ)がない場合は軸スコアに最も近いものを選ぶ。
+  // TF=0(強い共感)・JP=50(拮抗)なら、ENTJ(距離 100+50)より ENFP(距離 0+50)が近い
+  const enfjLean = scoreChoices(aiQuestions, [2, 2, 2, 2, -2, -2, 1, -1]);
+  assert(enfjLean.typeCode === 'ENFJ', '前提: ENFJ判定');
+  const best = matchCharacter(results, enfjLean.axes);
+  assert(best.name === 'C', '完全一致がなければ軸スコアが最も近いキャラを選ぶ');
+
+  assert(matchCharacter([{ name: 'X', code: 'bad' }, ...results], allFirst.axes).name === 'A', '不正なコードは無視する');
+}
+
+console.log('AIモード: パック検証:');
+{
+  const { isValidPack } = globalThis.DiagnosisAI;
+  const goodPack = {
+    title: 'ディズニー診断',
+    questions: ['EI', 'EI', 'NS', 'NS', 'TF', 'TF', 'JP', 'JP'].map((axis) => ({
+      axis,
+      text: 'q',
+      choices: [
+        { text: 'a', value: 2 }, { text: 'b', value: 1 },
+        { text: 'c', value: -1 }, { text: 'd', value: -2 },
+      ],
+    })),
+    results: [
+      { name: 'ミッキー', emoji: '🐭', code: 'ENFJ', catch: 'c', desc: 'd', strengths: ['s'], advice: 'a', flavor: 'f' },
+      { name: 'プーさん', emoji: '🍯', code: 'ISFP', catch: 'c', desc: 'd', strengths: ['s'], advice: 'a', flavor: 'f' },
+      { name: 'スティッチ', emoji: '👽', code: 'ESTP', catch: 'c', desc: 'd', strengths: ['s'], advice: 'a', flavor: 'f' },
+      { name: 'ベル', emoji: '📖', code: 'INFJ', catch: 'c', desc: 'd', strengths: ['s'], advice: 'a', flavor: 'f' },
+    ],
+  };
+  assert(isValidPack(goodPack), '正常なパックを受理');
+  assert(!isValidPack(null), 'nullを拒否');
+  assert(!isValidPack({ ...goodPack, questions: goodPack.questions.slice(0, 2) }), '軸が欠けたパックを拒否');
+  assert(!isValidPack({ ...goodPack, results: goodPack.results.slice(0, 2) }), '結果が少なすぎるパックを拒否');
+  assert(
+    !isValidPack({ ...goodPack, results: [...goodPack.results.slice(0, 3), { name: 'x', code: 'TOOLONG', strengths: [] }] }),
+    '不正な結果を含むパックを拒否'
+  );
 }
 
 console.log('');
