@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>〇〇診断メーカー | 好きなテーマで性格診断</title>
+  <meta name="description" content="好きなテーマを入れるだけで、あなただけの性格診断が作れます。質問は性格心理学に基づく4軸12問。" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="container">
+
+    <!-- 画面1: テーマ入力 -->
+    <section id="screen-start" class="screen active">
+      <div class="card">
+        <p class="logo">🔮 〇〇診断メーカー</p>
+        <h1 class="title">好きなテーマで、<br />あなただけの診断をつくろう</h1>
+        <p class="lead">
+          「〇〇」に好きな言葉を入れると、12問の性格診断が始まります。<br />
+          質問は性格心理学(ビッグファイブ理論)に基づく4軸で構成されているので、
+          結果はテーマが何であれ、あなたの性格をきちんと映します。
+        </p>
+
+        <div class="theme-input-row">
+          <input
+            id="theme-input"
+            type="text"
+            maxlength="12"
+            placeholder="例: ラーメン"
+            autocomplete="off"
+            aria-label="診断のテーマ"
+          />
+          <span class="theme-suffix">診断</span>
+        </div>
+        <p id="theme-error" class="error-msg" hidden>テーマを入力してください(12文字まで)</p>
+
+        <div class="chips" id="preset-chips" aria-label="テーマの例">
+          <!-- JSでプリセットを描画 -->
+        </div>
+
+        <button id="start-btn" class="btn btn-primary">診断をはじめる</button>
+
+        <p class="disclaimer">
+          ※ 結果の性格分析は簡易的な心理尺度に基づくものです。エンタメとしてお楽しみください。
+        </p>
+      </div>
+    </section>
+
+    <!-- 画面2: 質問 -->
+    <section id="screen-quiz" class="screen">
+      <div class="card">
+        <div class="quiz-header">
+          <p id="quiz-theme-label" class="quiz-theme-label"></p>
+          <p id="quiz-progress-text" class="quiz-progress-text"></p>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
+        <h2 id="question-text" class="question-text"></h2>
+
+        <div class="likert" id="likert-options" role="radiogroup" aria-label="回答">
+          <!-- JSで選択肢を描画 -->
+        </div>
+
+        <button id="back-btn" class="btn btn-ghost">← ひとつ前に戻る</button>
+      </div>
+    </section>
+
+    <!-- 画面3: 結果 -->
+    <section id="screen-result" class="screen">
+      <div class="card result-card">
+        <p id="result-theme-label" class="quiz-theme-label"></p>
+        <p id="result-emoji" class="result-emoji"></p>
+        <p class="result-you-are">あなたは……</p>
+        <h2 id="result-title" class="result-title"></h2>
+        <p id="result-code" class="result-code"></p>
+        <p id="result-catch" class="result-catch"></p>
+        <p id="result-flavor" class="result-flavor"></p>
+
+        <div class="result-section">
+          <h3>性格分析</h3>
+          <p id="result-desc"></p>
+        </div>
+
+        <div class="result-section">
+          <h3>あなたの4軸スコア</h3>
+          <div id="axis-bars" class="axis-bars"></div>
+        </div>
+
+        <div class="result-columns">
+          <div class="result-section">
+            <h3>強み</h3>
+            <ul id="result-strengths"></ul>
+          </div>
+          <div class="result-section">
+            <h3>ワンポイント</h3>
+            <p id="result-advice"></p>
+          </div>
+        </div>
+
+        <div class="result-section compat" id="compat-section">
+          <h3>相性のいいタイプ</h3>
+          <p id="result-compat"></p>
+        </div>
+
+        <div class="result-actions">
+          <button id="share-btn" class="btn btn-primary">結果をシェアする</button>
+          <button id="retry-btn" class="btn btn-secondary">同じテーマでもう一度</button>
+          <button id="new-theme-btn" class="btn btn-ghost">別のテーマで診断する</button>
+        </div>
+        <p id="share-feedback" class="share-feedback" hidden>リンクをコピーしました!</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>〇〇診断メーカー — 質問設計はビッグファイブ理論に基づく簡易4軸尺度です</p>
+  </footer>
+
+  <script src="js/questions.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

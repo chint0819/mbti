@@ -1,0 +1,414 @@
+/* ===== ベース ===== */
+:root {
+  --bg-grad-a: #f6d5f7;
+  --bg-grad-b: #c2e9fb;
+  --card-bg: rgba(255, 255, 255, 0.92);
+  --text: #2b2350;
+  --text-sub: #6b648b;
+  --accent: #7c3aed;
+  --accent-soft: #ede9fe;
+  --accent-2: #ec4899;
+  --border: #e6e1f5;
+  --track: #eeeaf8;
+  --shadow: 0 20px 60px rgba(80, 50, 160, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-grad-a: #1e1b3a;
+    --bg-grad-b: #101a2e;
+    --card-bg: rgba(30, 28, 55, 0.92);
+    --text: #ece9ff;
+    --text-sub: #a9a3c9;
+    --accent: #a78bfa;
+    --accent-soft: #2d2653;
+    --accent-2: #f472b6;
+    --border: #3a3560;
+    --track: #2a2648;
+    --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  color: var(--text);
+  background: linear-gradient(135deg, var(--bg-grad-a), var(--bg-grad-b)) fixed;
+  min-height: 100vh;
+  line-height: 1.7;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 8px;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+  backdrop-filter: blur(8px);
+}
+
+.screen { display: none; }
+.screen.active { display: block; animation: fade-in 0.35s ease; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ===== スタート画面 ===== */
+.logo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.title {
+  font-size: 1.6rem;
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.lead {
+  color: var(--text-sub);
+  font-size: 0.92rem;
+  margin: 0 0 24px;
+}
+
+.theme-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#theme-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.25rem;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#theme-input:focus { border-color: var(--accent); }
+
+.theme-suffix {
+  font-size: 1.35rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.error-msg {
+  color: var(--accent-2);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 24px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-sub);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ===== ボタン ===== */
+.btn {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 15px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.12s, opacity 0.2s;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-sub);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.disclaimer {
+  color: var(--text-sub);
+  font-size: 0.75rem;
+  margin: 16px 0 0;
+}
+
+/* ===== 質問画面 ===== */
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.quiz-theme-label {
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+}
+
+.quiz-progress-text {
+  color: var(--text-sub);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.3s ease;
+}
+
+.question-text {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  min-height: 4em;
+  margin: 0 0 24px;
+}
+
+.likert {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.likert-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.98rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.likert-option:hover { border-color: var(--accent); background: var(--accent-soft); }
+.likert-option.selected { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+
+.likert-dot {
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0.75;
+}
+
+/* 端ほど大きい、意味的なサイズ表現 */
+.dot-1 { width: 18px; height: 18px; border-color: var(--accent-2); }
+.dot-2 { width: 14px; height: 14px; border-color: var(--accent-2); }
+.dot-3 { width: 11px; height: 11px; border-color: var(--text-sub); }
+.dot-4 { width: 14px; height: 14px; }
+.dot-5 { width: 18px; height: 18px; }
+
+/* ===== 結果画面 ===== */
+.result-card { text-align: center; }
+
+.result-emoji {
+  font-size: 3.2rem;
+  margin: 4px 0 0;
+  line-height: 1.2;
+}
+
+.result-you-are {
+  color: var(--text-sub);
+  font-size: 0.9rem;
+  margin: 8px 0 2px;
+}
+
+.result-title {
+  font-size: 1.7rem;
+  line-height: 1.4;
+  margin: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.result-code {
+  color: var(--text-sub);
+  font-size: 0.9rem;
+  margin: 6px 0 14px;
+}
+
+.result-catch {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0 0 10px;
+}
+
+.result-flavor {
+  font-size: 0.95rem;
+  color: var(--text-sub);
+  background: var(--accent-soft);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0 0 8px;
+}
+
+.result-section {
+  text-align: left;
+  margin-top: 24px;
+}
+
+.result-section h3 {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent-soft);
+  padding-bottom: 6px;
+  margin: 0 0 10px;
+}
+
+.result-section p { margin: 0; font-size: 0.95rem; }
+
+.result-section ul {
+  margin: 0;
+  padding-left: 1.3em;
+  font-size: 0.95rem;
+}
+
+.result-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
+
+@media (max-width: 480px) {
+  .result-columns { grid-template-columns: 1fr; }
+}
+
+/* 4軸バー */
+.axis-bars { display: flex; flex-direction: column; gap: 16px; }
+
+.axis-row { text-align: left; }
+
+.axis-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-sub);
+  margin-bottom: 4px;
+}
+
+.axis-name { font-size: 0.75rem; }
+
+.axis-dominant { font-weight: 700; color: var(--accent); }
+
+.axis-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.axis-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  animation: grow 0.7s ease;
+}
+
+.axis-fill.from-left { left: 0; }
+.axis-fill.from-right { right: 0; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+
+@keyframes grow { from { width: 0; } }
+
+.axis-percent {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-sub);
+  text-align: right;
+}
+
+.compat p { color: var(--text-sub); }
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.share-feedback {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin: 10px 0 0;
+}
+
+/* ===== フッター ===== */
+.footer {
+  text-align: center;
+  color: var(--text-sub);
+  font-size: 0.72rem;
+  padding: 16px;
+  opacity: 0.8;
+}
