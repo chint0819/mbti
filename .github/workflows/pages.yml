@@ -8,9 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -19,22 +17,13 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
       - name: テスト
         run: node tests/run-tests.js
 
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      # 静的サイトなのでビルド不要。リポジトリの内容をそのまま gh-pages に公開する。
+      # gh-pages ブランチの作成により GitHub Pages が自動で有効化される。
+      - name: gh-pages ブランチへ公開
+        run: git push origin HEAD:gh-pages --force
